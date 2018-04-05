@@ -37,19 +37,19 @@ def validateFilename(filename):
 
 def validateURL(url):
     try:
-        r = urllib2.urlopen(url)
+        r = requests.get(url, headers=ua)
         count = 1
-        while r.getcode() == 500 and count < 4:
+        while r.status_code == 500 and count < 4:
             print ("Attempt {0} - Status code: {1}. Retrying.".format(count, r.status_code))
             count += 1
-            r = urllib2.urlopen(url)
+            r = requests.get(url, headers=ua)
         sourceFilename = r.headers.get('Content-Disposition')
 
         if sourceFilename:
             ext = os.path.splitext(sourceFilename)[1].replace('"', '').replace(';', '').replace(' ', '')
         else:
             ext = os.path.splitext(url)[1]
-        validURL = r.getcode() == 200
+        validURL = r.status_code == 200
         validFiletype = ext.lower() in ['.csv', '.xls', '.xlsx', '.pdf']
         return validURL, validFiletype
     except:
@@ -83,22 +83,24 @@ def convert_mth_strings ( mth_string ):
 
 #### VARIABLES 1.0
 
+import requests
 entity_id = "NHTRGDFT_LPNFT_gov"
-url = "http://www.leedsandyorkpft.nhs.uk/about_us/finance"
+url = "https://www.leedsandyorkpft.nhs.uk/corporate/finance/"
 errors = 0
 data = []
+ua = {'user-agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36'}
 
 #### READ HTML 1.0
 
-html = urllib2.urlopen(url)
-soup = BeautifulSoup(html, 'lxml')
+html = requests.get(url, headers=ua)
+soup = BeautifulSoup(html.text, 'lxml')
 
 
 #### SCRAPE DATA
 
+
 blocks = soup.find_all('a')
 for block in blocks:
-    try:
         if '.csv' in block['href'] or '.xls' in block['href'] or '.xlsx' in block['href'] or '.pdf' in block['href']:
             if 'http' not in block['href']:
                 link = 'http://www.leedsandyorkpft.nhs.uk'+block['href'].split('?')[0]
@@ -107,12 +109,11 @@ for block in blocks:
             title = block.text.strip().split()
             csvMth = title[0][:3]
             csvYr = title[1][-4:]
-            if ' to ' in block.text.strip():
+            if u' – ' in block.text.strip():
                 csvMth = 'Q0'
+                csvYr = '2010'
             csvMth = convert_mth_strings(csvMth.upper())
             data.append([csvYr, csvMth, link])
-    except:
-        pass
 
 
 #### STORE DATA 1.0
